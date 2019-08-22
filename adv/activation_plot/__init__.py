@@ -1,7 +1,7 @@
-import time
 import numpy as np
-import tensorflow as tf
+import os
 import matplotlib.pyplot as plt
+import tensorflow as tf
 
 from tensorflow.keras import layers
 from tensorflow.keras.models import Sequential
@@ -12,12 +12,17 @@ from tensorflow.keras import backend as K
 import multiprocessing
 from multiprocessing import Pool
 from functools import partial
-#%matplotlib inline
 
 #import im2video
 #import data2video
 
-#__all__ = ['im2video', 'data2video']
+self = ['clear_line', 'get_activation','assign_color','prepare_model','data_grid',\
+       'get_color','get_data_activation','get_data_color','get_activation_prediction_transition']
+sub_module = []
+
+__all__ = self+sub_module
+
+batch_size = 32
 
 def clear_line():
     print(' '*80,end='\r')
@@ -111,3 +116,68 @@ def get_data_color(activations,colors):
     pool.join()
     
     return data_activation_color
+
+def get_activation_prediction_transition(result_dir,num_epoch,X_test,model_data_labels): 
+    model, data, labels = model_data_labels 
+    get_layer_output_functions = []
+    for layer_i in range(len(model.layers)):
+        get_layer_output_functions.append(K.function(model.layers[0].input,model.layers[layer_i].output))
+
+    for epoch_i in range(num_epoch):        
+        activations = get_data_activation(X_test, get_layer_output_functions)
+        #data_activation_color = get_data_color(activations,colors)
+        Y_test = model.predict(X_test)
+
+        np.savez_compressed(result_dir+'/'+'epoch'+str(format(epoch_i,'0>3')),\
+                            activations = activations,\
+			    prediction = Y_test)
+
+        step = epoch_i+1
+        history = model.fit(data, labels, epochs=1,verbose=0,steps_per_epoch=step,batch_size=batch_size)
+        train_info = 'epoch '+ str(epoch_i+1)+': '+str(history.history)
+        print(train_info, end='\n')
+        
+        root,model_name = os.path.split(result_dir)
+        trainlog_path = root+'/trainlog'
+        if not os.path.exists(trainlog_path):
+            os.makedirs(trainlog_path)
+        File = open(trainlog_path+'/'+model_name+'.txt','a+') 
+        File.write(train_info+'\n')
+        File.flush()
+        File.close() 
+
+def plot_data(data_path,X_test,colors):
+    files = os.listdir(data_path)
+    files = [file for file in files if '.npz' in file]
+    files = sorted(files, key = lambda x : int(x[5:x.find('.')]))
+    print('Process '+data_path)
+    plot_progress = 0
+    for file in files:
+        print('plot progress:{0}%'.format(round((plot_progress * 100 / len(files)))),end='\r')
+        plot_progress+=1
+        activation_data_path = os.path.join(data_path,file)
+        activation_data = np.load(activation_data_path,allow_pickle=True)
+        activations = activation_data['activations']
+        pred = activation_data['prediction']
+        pred = np.argmax(pred,axis=1)
+        data_activation_color = get_data_color(activations,colors)
+        act_plot_path = os.path.join(data_path,'activation_plot')
+        pred_plot_path = os.path.join(data_path,'prediction_plot')
+        if not os.path.exists(act_plot_path):
+            os.makedirs(act_plot_path)
+        if not os.path.exists(pred_plot_path):
+            os.makedirs(pred_plot_path) 
+            
+        #Plot activation    
+        plt.figure(figsize=(10, 10))
+        plt.scatter(X_test[:, 0], X_test[:, 1], marker='o',s=4, c=data_activation_color)
+        plt.title(activation_data_path[:-4]+'activation_'+file[:-4],fontsize=20)
+        plt.savefig(act_plot_path+'/'+'activation_'+file[:-4])
+        plt.close() 
+  
+        #Plot prediction
+        plt.figure(figsize=(10, 10))
+        plt.scatter(X_test[:, 0], X_test[:, 1], marker='o',s=4, c=pred)
+        plt.title(activation_data_path[:-4]+'prediction_'+file[:-4],fontsize=20)
+        plt.savefig(pred_plot_path+'/'+'prediction_'+file[:-4])
+        plt.close() 
