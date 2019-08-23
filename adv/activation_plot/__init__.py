@@ -27,10 +27,16 @@ batch_size = 32
 def clear_line():
     print(' '*80,end='\r')
     
+def get_layer_output_functions(model):
+    layer_output_functions = []
+    for layer_i in range(len(model.layers)):
+        layer_output_functions.append(K.function(model.layers[0].input,model.layers[layer_i].output))
+    return layer_output_functions
+
 #function to get activation of input data into a list
-def get_activation(data, get_layer_output_functions): 
+def get_activation(data, layer_output_functions): 
     layer_output = []
-    for f in get_layer_output_functions[:-1]:
+    for f in layer_output_functions[:-1]:
         layer_output.append(f(data.reshape(1,2))[0])
 
     for i in range(len(layer_output)):
@@ -81,7 +87,7 @@ def get_color(data):
     np.random.shuffle(colors)
     return colors
 
-def get_data_activation(all_data, get_layer_output_functions):
+def get_data_activation(all_data, layer_output_functions):
     #loop for all data points to get activations
     i_data = 0
     activations = []
@@ -89,7 +95,7 @@ def get_data_activation(all_data, get_layer_output_functions):
     for data in all_data:
         #act_progress = "get activation progress:{0}%".format(round((i_data + 1) * 100 / len(X_test)))
         #print(act_progress, end='\r')
-        activations.append(get_activation(data,get_layer_output_functions))
+        activations.append(get_activation(data,layer_output_functions))
         i_data = i_data + 1
         
     return activations
@@ -119,12 +125,9 @@ def get_data_color(activations,colors):
 
 def get_activation_prediction_transition(result_dir,num_epoch,X_test,model_data_labels): 
     model, data, labels = model_data_labels 
-    get_layer_output_functions = []
-    for layer_i in range(len(model.layers)):
-        get_layer_output_functions.append(K.function(model.layers[0].input,model.layers[layer_i].output))
-
+    layer_output_functions = get_layer_output_functions(model)
     for epoch_i in range(num_epoch):        
-        activations = get_data_activation(X_test, get_layer_output_functions)
+        activations = get_data_activation(X_test, layer_output_functions)
         #data_activation_color = get_data_color(activations,colors)
         Y_test = model.predict(X_test)
 
@@ -149,7 +152,7 @@ def get_activation_prediction_transition(result_dir,num_epoch,X_test,model_data_
 def plot_data(data_path,X_test,colors):
     files = os.listdir(data_path)
     files = [file for file in files if '.npz' in file]
-    files = sorted(files, key = lambda x : int(x[5:x.find('.')]))
+    files = sorted(files, key = lambda x : int(x[x.find('epoch')+5:x.find('epoch')+8]))
     print('Process '+data_path)
     plot_progress = 0
     for file in files:
