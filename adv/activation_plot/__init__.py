@@ -49,9 +49,11 @@ def get_activation(data, layer_output_functions):
 
 #assign a different color to each different activation,use color index
 def assign_color(activations,act_index):
+    result = 0
     for i in range(len(activations[0])):
         binary = ''.join(str(e) for e in activations[act_index][i].astype(int))
-    return int(binary,2)
+        result += int(binary,2)
+    return result
 
 def prepare_model(hid_layer_units, n_category):
     model = tf.keras.Sequential()
