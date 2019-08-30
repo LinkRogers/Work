@@ -43,9 +43,11 @@ def get_activation(data, get_layer_output_functions):
 
 #assign a different color to each different activation,use color index
 def assign_color(activations,act_index):
+    result = ''
     for i in range(len(activations[0])):
         binary = ''.join(str(e) for e in activations[act_index][i].astype(int))
-    return int(binary,2)
+        result += binary
+    return result
 
 def prepare_model(hid_layer_units, n_category):
     model = tf.keras.Sequential()
@@ -106,10 +108,11 @@ def get_data_color(activations,colors):
         #print(color_progress, end='\r')
         data_activation_color.append(y)
 
-    data_activation_color = np.asarray(data_activation_color)
     data_color_cluster = np.unique(data_activation_color)
     for color_i in range(len(data_activation_color)):
         [data_activation_color[color_i]] = np.where(data_color_cluster == data_activation_color[color_i])[0]
+        
+    data_activation_color = np.asarray(data_activation_color) 
     data_activation_color = data_activation_color.astype(int)
     data_activation_color = colors[data_activation_color]/255
     pool.close()
